@@ -24,7 +24,7 @@ export const SCHEMA_VERSION = 'v6';
 export const PREVIOUS_SCHEMA_VERSION = 'v5';
 
 // 首页 HTML 缓存版本 - 修改此值会强制刷新首页缓存
-export const HOME_CACHE_VERSION = 'v39';
+export const HOME_CACHE_VERSION = 'v40';
 
 // 首页 HTML 缓存与 dirty 标记 TTL（30 天）
 export const HOME_CACHE_TTL = 2592000;
@@ -93,7 +93,7 @@ export const FONT_MAP = {
   "'Noto Sans SC', sans-serif": "https://fonts.loli.net/css2?family=Noto+Sans+SC:wght@300;400;500;700&display=swap",
   "'Noto Serif SC', serif": "https://fonts.loli.net/css2?family=Noto+Serif+SC:wght@400;700&display=swap",
   "'Ma Shan Zheng', cursive": "https://fonts.loli.net/css2?family=Ma+Shan+Zheng&display=swap", // 书法
-  "'ZCOOL KuaiLe', cursive": "https://fonts.loli.net/css2?family=ZCOOL+KuaiLe&display=swap", // 快乐体
+  "'ZCOOL KuaiLe', cursive": "https://fonts.loli.net/css2?family=ZCOOL+KuaiLe:wght@400&display=swap", // 快乐体
   "'Long Cang', cursive": "https://fonts.loli.net/css2?family=Long+Cang&display=swap", // 草书
   "'Roboto', sans-serif": "https://fonts.loli.net/css2?family=Roboto:wght@300;400;500;700&display=swap",
   "'Open Sans', sans-serif": "https://fonts.loli.net/css2?family=Open+Sans:wght@400;600;700&display=swap",
