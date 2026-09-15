@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { onRequestPut } from '../functions/api/config/[id].js';
+import { onRequestGet, onRequestPut } from '../functions/api/config/[id].js';
 
 function createKv(initialEntries = {}) {
   const store = new Map(Object.entries(initialEntries));
@@ -43,6 +43,44 @@ function createDb({ category }) {
     },
   };
 }
+
+test('GET /api/config/:id hides an otherwise-public bookmark when its category chain is not public', async () => {
+  let capturedSql = '';
+  const request = new Request('https://example.com/api/config/1');
+  const env = {
+    NAV_AUTH: createKv(),
+    NAV_DB: {
+      prepare(sql) {
+        capturedSql = sql;
+        return {
+          bind() {
+            return {
+              async all() {
+                return {
+                  results: [{
+                    id: 1,
+                    name: 'Hidden by ancestor',
+                    url: 'https://example.com',
+                    is_private: 0,
+                    category_is_public: 0,
+                  }],
+                };
+              },
+            };
+          },
+        };
+      },
+    },
+  };
+
+  const response = await onRequestGet({ request, env, params: { id: '1' } });
+  const body = await response.json();
+
+  assert.equal(response.status, 404);
+  assert.equal(body.code, 404);
+  assert.match(capturedSql, /WITH RECURSIVE public_categories/);
+  assert.match(capturedSql, /category_is_public/);
+});
 
 test('PUT /api/config/:id rejects updates to a missing category', async () => {
   const request = new Request('https://example.com/api/config/1', {
