@@ -2,6 +2,7 @@
 import { isAdminAuthenticated, errorResponse, jsonResponse, markHomeCacheDirty, normalizeSortOrder } from '../../_middleware';
 import { buildFaviconUrl, getUrlMatchCandidates, normalizeUrlForStorage } from '../../lib/utils';
 import { normalizeBookmarkDesc, normalizeBookmarkLogo, normalizeBookmarkName, normalizeBookmarkUrl } from '../../lib/validators';
+import { isCategoryPublicToVisitors } from '../../lib/privacy';
 
 export async function onRequestPut(context) {
   const { request, env, params } = context;
@@ -80,7 +81,10 @@ export async function onRequestPut(context) {
     if (!category) {
       return errorResponse('Category not found.', 400);
     }
-    const finalIsPrivate = category.is_private === 1 ? 1 : isPrivateValue;
+
+    // 审核通过时也按完整祖先链继承隐私，避免异常分类树产生“公开书签挂在私密祖先下”的脏状态。
+    const categoryIsPublic = await isCategoryPublicToVisitors(env.NAV_DB, catelogId);
+    const finalIsPrivate = categoryIsPublic ? isPrivateValue : 1;
 
     // 入库与移出待审队列必须同时生效：D1 的 batch 是隐式单事务，失败即全部回滚。
     // 若拆成两次 run()，DELETE 失败会让书签已入库但条目永久卡在待审队列，
