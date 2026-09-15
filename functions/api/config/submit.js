@@ -3,6 +3,7 @@ import { isSubmissionEnabled, errorResponse, jsonResponse, checkRateLimit } from
 import { normalizeUrlForStorage } from '../../lib/utils';
 import { verifyTurnstileToken } from '../../lib/turnstile';
 import { normalizeBookmarkDesc, normalizeBookmarkLogo, normalizeBookmarkName, normalizeBookmarkUrl } from '../../lib/validators';
+import { isCategoryPublicToVisitors } from '../../lib/privacy';
 
 export async function onRequestPost(context) {
   const { request, env } = context;
@@ -52,8 +53,15 @@ export async function onRequestPost(context) {
       return errorResponse('URL must be a valid http or https URL', 400);
     }
 
-    const categoryResult = await env.NAV_DB.prepare('SELECT catelog, is_private FROM category WHERE id = ?').bind(catelog_id).first();
-    if (!categoryResult || categoryResult.is_private === 1) {
+    // 投稿目标必须是“有效公开”分类：分类自身和全部祖先都公开。
+    // 这样即使猜中私密分类子树里的 ID，也不能利用投稿接口确认或写入该隐藏分类。
+    const categoryIsPublic = await isCategoryPublicToVisitors(env.NAV_DB, catelog_id);
+    if (!categoryIsPublic) {
+      return errorResponse('Category not found', 400);
+    }
+
+    const categoryResult = await env.NAV_DB.prepare('SELECT catelog FROM category WHERE id = ?').bind(catelog_id).first();
+    if (!categoryResult) {
       return errorResponse('Category not found', 400);
     }
     const catelogName = categoryResult.catelog;
