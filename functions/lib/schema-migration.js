@@ -79,6 +79,37 @@ async function runIncrementalMigrations(env) {
       WHERE catelog_name IS NULL
     `).run();
   }
+
+  // Privacy invariant repair:
+  // 1) 私密分类的所有后代分类都必须保持私密；
+  // 2) 位于这些分类中的书签也必须保持私密。
+  // 使用 UNION 去重，历史异常数据即使存在循环父级也不会无限递归。
+  const privateDescendantsCte = `
+    WITH RECURSIVE private_descendants(id) AS (
+      SELECT id FROM category WHERE is_private = 1
+      UNION
+      SELECT c.id
+      FROM category c
+      INNER JOIN private_descendants p ON c.parent_id = p.id
+    )
+  `;
+
+  await env.NAV_DB.batch([
+    env.NAV_DB.prepare(`
+      ${privateDescendantsCte}
+      UPDATE category
+      SET is_private = 1
+      WHERE id IN (SELECT id FROM private_descendants)
+        AND is_private != 1
+    `),
+    env.NAV_DB.prepare(`
+      ${privateDescendantsCte}
+      UPDATE sites
+      SET is_private = 1
+      WHERE catelog_id IN (SELECT id FROM private_descendants)
+        AND is_private != 1
+    `),
+  ]);
 }
 
 export async function ensureSchemaReady(env) {
