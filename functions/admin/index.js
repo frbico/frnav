@@ -29,6 +29,12 @@ export async function onRequestGet(context) {
       const csrfToken = await env.NAV_AUTH.get(`csrf_${sessionToken}`);
       if (csrfToken) {
         let html = await response.text();
+        // 后台页与首页共用同一套网站图标。加时间戳避免浏览器继续使用旧 favicon 缓存。
+        const adminFaviconUrl = `/api/site-icon?raw=1&v=${Date.now()}`;
+        html = html.replace(
+          /<link\s+rel=["']icon["'][^>]*>/i,
+          `<link rel="icon" href="${adminFaviconUrl}">`
+        );
         const adminTypographyStyle = `
 <style id="iori-admin-site-info-typography">
   label[for="homeSiteName"],
