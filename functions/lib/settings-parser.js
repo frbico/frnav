@@ -31,6 +31,9 @@ export const SETTINGS_SCHEMA = {
     home_site_name: { default: '', type: 'string' },
     home_site_description: { default: '', type: 'string' },
     home_footer_text: { default: '', type: 'string' },
+    home_footer_show_github: { default: true, type: 'bool' },
+    home_footer_github_url: { default: 'https://slink.661388.xyz/iori-nav', type: 'string' },
+    home_footer_copyright_text: { default: '© {year}', type: 'string' },
     home_search_engine_enabled: { default: false, type: 'bool' },
     home_default_category: { default: '', type: 'string' },
     home_remember_last_category: { default: false, type: 'bool' },
@@ -107,6 +110,7 @@ const FONT_KEYS = new Set([
 
 const URL_KEYS = new Set([
     'home_custom_font_url',
+    'home_footer_github_url',
     'layout_custom_wallpaper',
 ]);
 
