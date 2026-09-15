@@ -1,6 +1,7 @@
 // functions/api/categories/index.js
 import { isAdminAuthenticated, isSubmissionEnabled, errorResponse, jsonResponse } from '../../_middleware';
 import { parsePagination } from '../../lib/utils';
+import { PUBLIC_CATEGORIES_CTE } from '../../lib/privacy';
 
 export async function onRequestGet(context) {
   const { request, env } = context;
@@ -18,13 +19,15 @@ export async function onRequestGet(context) {
   const { page, pageSize, offset } = parsePagination(url.searchParams, { maxPageSize });
 
   try {
-    const categoryFilter = shouldShowPublicOnly ? 'WHERE c.is_private = 0' : '';
-    const countFilter = shouldShowPublicOnly ? 'WHERE is_private = 0' : '';
+    const categoryFilter = shouldShowPublicOnly ? 'WHERE c.id IN (SELECT id FROM public_categories)' : '';
+    const countFilter = shouldShowPublicOnly ? 'WHERE c.id IN (SELECT id FROM public_categories)' : '';
     const siteJoin = shouldShowPublicOnly
       ? 'LEFT JOIN sites s ON c.id = s.catelog_id AND s.is_private = 0'
       : 'LEFT JOIN sites s ON c.id = s.catelog_id';
+    const cte = shouldShowPublicOnly ? PUBLIC_CATEGORIES_CTE : '';
 
     const { results } = await env.NAV_DB.prepare(`
+        ${cte}
         SELECT c.id, c.catelog, c.sort_order, c.parent_id, c.is_private, COUNT(s.id) AS site_count
         FROM category c
         ${siteJoin}
@@ -34,7 +37,8 @@ export async function onRequestGet(context) {
         LIMIT ? OFFSET ?
       `).bind(pageSize, offset).all();
     const countResult = await env.NAV_DB.prepare(`
-      SELECT COUNT(*) as total FROM category ${countFilter}
+      ${cte}
+      SELECT COUNT(*) as total FROM category c ${countFilter}
     `).first();
 
     const total = countResult ? countResult.total : 0;
