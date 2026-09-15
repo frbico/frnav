@@ -26,9 +26,12 @@ export async function onRequestGet(context) {
   const { page, pageSize, offset } = parsePagination(url.searchParams, { maxPageSize });
 
   try {
-    // 基础查询：不再关联 category，直接查 sites 表，提高性能
-    // 注意：始终筛选 (is_private = 0 OR includePrivate = 1)
-    let queryBase = `FROM sites s WHERE (s.is_private = 0 OR ? = 1)`;
+    // 公开读取必须同时满足「书签公开」和「所属分类公开」。
+    // 即使历史数据或异常写入造成两张表的 is_private 不一致，也不能把私密分类下的书签暴露出去。
+    // 管理员读取不受该限制，仍可看到全部数据；LEFT JOIN 也保留异常的孤儿书签供后台修复。
+    let queryBase = `FROM sites s
+                     LEFT JOIN category c ON c.id = s.catelog_id
+                     WHERE (? = 1 OR (s.is_private = 0 AND c.id IS NOT NULL AND c.is_private = 0))`;
     let queryBindParams = [includePrivate];
 
     if (catalogId) {
@@ -41,11 +44,11 @@ export async function onRequestGet(context) {
 
     if (keyword) {
       const escaped = escapeLikePattern(keyword);
-      queryBase += ` AND (name LIKE ? ESCAPE '\\' OR url LIKE ? ESCAPE '\\' OR catelog_name LIKE ? ESCAPE '\\' OR s.desc LIKE ? ESCAPE '\\')`;
+      queryBase += ` AND (s.name LIKE ? ESCAPE '\\' OR s.url LIKE ? ESCAPE '\\' OR s.catelog_name LIKE ? ESCAPE '\\' OR s.desc LIKE ? ESCAPE '\\')`;
       queryBindParams.push(`%${escaped}%`, `%${escaped}%`, `%${escaped}%`, `%${escaped}%`);
     }
 
-    const query = `SELECT * ${queryBase} ORDER BY sort_order ASC, create_time DESC LIMIT ? OFFSET ?`;
+    const query = `SELECT s.* ${queryBase} ORDER BY s.sort_order ASC, s.create_time DESC LIMIT ? OFFSET ?`;
     const countQuery = `SELECT COUNT(*) as total ${queryBase}`;
     
     // 添加分页参数
