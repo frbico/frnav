@@ -1,12 +1,28 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { buildNotFoundResponse } from '../functions/[[path]].js';
+import { buildNotFoundResponse, routeCatchAllRequest } from '../functions/[[path]].js';
 import {
   getSettingsKeys,
   normalizeSettingValueForStorage,
   parseSettings,
 } from '../functions/lib/settings-parser.js';
+
+test('catch-all delegates the real homepage instead of turning / into a 404', async () => {
+  let called = false;
+  const response = await routeCatchAllRequest(
+    { request: new Request('https://example.com/') },
+    async (context) => {
+      called = true;
+      assert.equal(new URL(context.request.url).pathname, '/');
+      return new Response('homepage-ok', { status: 200 });
+    }
+  );
+
+  assert.equal(called, true);
+  assert.equal(response.status, 200);
+  assert.equal(await response.text(), 'homepage-ok');
+});
 
 test('unknown page routes return a real 404 instead of the raw homepage template', async () => {
   const response = buildNotFoundResponse(new Request('https://example.com/random-dictionary-path'));

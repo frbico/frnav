@@ -1,6 +1,10 @@
 // functions/[[path]].js
 // Catch-all for unknown application routes. Without this function Cloudflare Pages may
 // fall back to public/index.html for arbitrary paths, exposing the raw SSR template.
+// Note: [[path]] is optional and can also match '/', so explicitly delegate the real
+// homepage back to functions/index.js instead of returning a 404 for the site root.
+
+import { onRequest as renderHomepage } from './index';
 
 function notFoundHeaders(contentType) {
   return {
@@ -8,6 +12,10 @@ function notFoundHeaders(contentType) {
     'Cache-Control': 'no-store',
     'X-Content-Type-Options': 'nosniff',
   };
+}
+
+export function isHomepageRequest(request) {
+  return new URL(request.url).pathname === '/';
 }
 
 export function buildNotFoundResponse(request) {
@@ -52,6 +60,13 @@ export function buildNotFoundResponse(request) {
   });
 }
 
-export async function onRequest(context) {
+export async function routeCatchAllRequest(context, homepageHandler = renderHomepage) {
+  if (isHomepageRequest(context.request)) {
+    return homepageHandler(context);
+  }
   return buildNotFoundResponse(context.request);
+}
+
+export async function onRequest(context) {
+  return routeCatchAllRequest(context);
 }
