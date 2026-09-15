@@ -7,16 +7,25 @@ import { normalizeBookmarkDesc, normalizeBookmarkLogo, normalizeBookmarkName, no
 export async function onRequestGet(context) {
   const { request, env, params } = context;
   const id = params.id;
-  const { results } = await env.NAV_DB.prepare('SELECT * FROM sites WHERE id = ?').bind(id).all();
+  const { results } = await env.NAV_DB.prepare(`
+    SELECT s.*, c.is_private AS category_is_private
+    FROM sites s
+    LEFT JOIN category c ON c.id = s.catelog_id
+    WHERE s.id = ?
+  `).bind(id).all();
   if (results.length === 0) {
     return errorResponse('config not found', 404);
   }
   const config = results[0];
   
-  // 私密站点需要认证才能访问
-  if (config.is_private && !(await isAdminAuthenticated(request, env))) {
+  // 私密站点或私密分类下的站点都需要认证才能访问。
+  // category_is_private 为 NULL 说明分类缺失；匿名读取同样失败关闭，避免异常数据意外公开。
+  const categoryBlocksPublicRead = config.category_is_private === null || config.category_is_private === undefined || config.category_is_private === 1;
+  if ((config.is_private || categoryBlocksPublicRead) && !(await isAdminAuthenticated(request, env))) {
     return errorResponse('config not found', 404);
   }
+
+  delete config.category_is_private;
   
   return jsonResponse({
     code: 200,
