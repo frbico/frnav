@@ -2,10 +2,10 @@
 /css/*
   Cache-Control: public, max-age=31536000, immutable
 
-# JavaScript is revalidated so direct GitHub/API commits cannot get stuck behind
-# an old immutable asset when the query-string hash was not regenerated locally.
+# JavaScript customizations are edited directly in GitHub/API, so never cache them.
+# This avoids stale UI after Cloudflare Pages redeployments even when ?v= does not change.
 /js/*
-  Cache-Control: public, max-age=0, must-revalidate
+  Cache-Control: no-store
 
 /favicon.svg
   Cache-Control: public, max-age=31536000, immutable
