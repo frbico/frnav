@@ -26,8 +26,11 @@ test('public submit does not expose duplicate site URL existence', async () => {
           return {
             async first() {
               firstSqlCalls.push(sql);
-              if (sql.includes('SELECT catelog, is_private FROM category')) {
-                return { catelog: 'Public', is_private: 0 };
+              if (sql.includes('FROM public_categories')) {
+                return { id: 1 };
+              }
+              if (sql.includes('SELECT catelog FROM category')) {
+                return { catelog: 'Public' };
               }
               throw new Error(`Unexpected first() SQL: ${sql} ${JSON.stringify(params)}`);
             },
@@ -175,8 +178,11 @@ test('public submit verifies Turnstile token before inserting pending site', asy
         bind(...params) {
           return {
             async first() {
-              if (sql.includes('SELECT catelog, is_private FROM category')) {
-                return { catelog: 'Public', is_private: 0 };
+              if (sql.includes('FROM public_categories')) {
+                return { id: 1 };
+              }
+              if (sql.includes('SELECT catelog FROM category')) {
+                return { catelog: 'Public' };
               }
               throw new Error(`Unexpected first() SQL: ${sql} ${JSON.stringify(params)}`);
             },
