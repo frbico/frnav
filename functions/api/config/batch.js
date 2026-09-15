@@ -86,12 +86,33 @@ export async function onRequestPost(context) {
       });
 
     } else if (action === 'update_privacy') {
-      const { isPrivate } = payload;
+      const { isPrivate } = payload || {};
       if (isPrivate === undefined) {
         return errorResponse('隐私状态是必填项', 400);
       }
       
       const isPrivateValue = isPrivate ? 1 : 0;
+
+      // 私密分类是更高一级的隐私边界。书签不能在所属分类仍为私密时被单独设为公开，
+      // 否则会制造 category.is_private=1 / sites.is_private=0 的脏状态并导致公开读取泄露。
+      // 先校验全部分块，再执行任何 UPDATE，避免部分分块已经公开后才发现冲突。
+      if (isPrivateValue === 0) {
+        for (const chunk of chunks) {
+          const placeholders = chunk.map(() => '?').join(',');
+          const protectedSite = await env.NAV_DB.prepare(`
+            SELECT s.id
+            FROM sites s
+            LEFT JOIN category c ON c.id = s.catelog_id
+            WHERE s.id IN (${placeholders})
+              AND (c.id IS NULL OR c.is_private = 1)
+            LIMIT 1
+          `).bind(...chunk).first();
+
+          if (protectedSite) {
+            return errorResponse('私密分类中的书签不能单独设为公开，请先公开所属分类', 409);
+          }
+        }
+      }
       
       chunks.forEach(chunk => {
         const placeholders = chunk.map(() => '?').join(',');
