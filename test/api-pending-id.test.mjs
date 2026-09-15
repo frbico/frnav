@@ -106,6 +106,9 @@ function createApprovalDb({ failBatch = false } = {}) {
           if (sql.includes('SELECT catelog, is_private FROM category')) {
             return { catelog: 'Default', is_private: 0 };
           }
+          if (sql.includes('FROM public_categories')) {
+            return { id: 1 };
+          }
           throw new Error(`Unexpected first() SQL: ${sql}`);
         },
         async run() {
