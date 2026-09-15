@@ -29,7 +29,36 @@ export async function onRequestGet(context) {
       const csrfToken = await env.NAV_AUTH.get(`csrf_${sessionToken}`);
       if (csrfToken) {
         let html = await response.text();
-        html = html.replace('</head>', `<meta name="csrf-token" content="${csrfToken}">\n</head>`);
+        const adminTypographyStyle = `
+<style id="iori-admin-site-info-typography">
+  label[for="homeSiteName"],
+  label[for="homeSiteDescription"],
+  label[for="homeFooterText"] {
+    color: #6b7280 !important;
+    font-size: 12px !important;
+    line-height: 18px !important;
+    font-weight: 400 !important;
+  }
+
+  #homeSiteName,
+  #homeSiteDescription,
+  #homeFooterText {
+    font-size: 14px !important;
+    line-height: 20px !important;
+    font-weight: 400 !important;
+  }
+
+  #homeSiteName::placeholder,
+  #homeSiteDescription::placeholder,
+  #homeFooterText::placeholder {
+    font-size: 14px !important;
+    line-height: 20px !important;
+  }
+</style>`;
+        html = html.replace(
+          '</head>',
+          `<meta name="csrf-token" content="${csrfToken}">\n${adminTypographyStyle}\n</head>`
+        );
         // 自定义增强脚本使用独立文件名与版本号，避免旧缓存干扰。
         html = html.replace('</body>', '<script src="/js/admin-site-icon.js?v=20260915-3"></script>\n</body>');
         const headers = new Headers(response.headers);
