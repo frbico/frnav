@@ -156,9 +156,13 @@
 
     setStatus('正在保存网站图标...');
     try {
+      const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
       const response = await fetch('/api/site-icon', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': csrfToken,
+        },
         body: JSON.stringify({ value }),
       });
       const payload = await response.json();
