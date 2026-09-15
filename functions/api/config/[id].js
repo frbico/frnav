@@ -2,15 +2,17 @@
 import { isAdminAuthenticated, errorResponse, jsonResponse, normalizeSortOrder, markHomeCacheDirty } from '../../_middleware';
 import { buildFaviconUrl, getUrlMatchCandidates, normalizeUrlForStorage } from '../../lib/utils';
 import { normalizeBookmarkDesc, normalizeBookmarkLogo, normalizeBookmarkName, normalizeBookmarkUrl } from '../../lib/validators';
+import { PUBLIC_CATEGORIES_CTE, isCategoryPublicToVisitors } from '../../lib/privacy';
 
 
 export async function onRequestGet(context) {
   const { request, env, params } = context;
   const id = params.id;
   const { results } = await env.NAV_DB.prepare(`
-    SELECT s.*, c.is_private AS category_is_private
+    ${PUBLIC_CATEGORIES_CTE}
+    SELECT s.*,
+           CASE WHEN s.catelog_id IN (SELECT id FROM public_categories) THEN 1 ELSE 0 END AS category_is_public
     FROM sites s
-    LEFT JOIN category c ON c.id = s.catelog_id
     WHERE s.id = ?
   `).bind(id).all();
   if (results.length === 0) {
@@ -18,14 +20,14 @@ export async function onRequestGet(context) {
   }
   const config = results[0];
   
-  // 私密站点或私密分类下的站点都需要认证才能访问。
-  // category_is_private 为 NULL 说明分类缺失；匿名读取同样失败关闭，避免异常数据意外公开。
-  const categoryBlocksPublicRead = config.category_is_private === null || config.category_is_private === undefined || config.category_is_private === 1;
+  // 匿名读取 fail-closed：书签自身和从所属分类到根分类的整条祖先链都必须公开。
+  // 分类缺失、循环、NULL 隐私标记或任一祖先私密时，category_is_public 都不会为 1。
+  const categoryBlocksPublicRead = config.category_is_public !== 1;
   if ((config.is_private || categoryBlocksPublicRead) && !(await isAdminAuthenticated(request, env))) {
     return errorResponse('config not found', 404);
   }
 
-  delete config.category_is_private;
+  delete config.category_is_public;
   
   return jsonResponse({
     code: 200,
@@ -96,11 +98,9 @@ export async function onRequestPut(context) {
     }
     const catelogName = categoryResult.catelog;
 
-    // If category is private, force site to be private
-    let finalIsPrivate = isPrivateValue;
-    if (categoryResult.is_private === 1) {
-        finalIsPrivate = 1;
-    }
+    // 分类自身或任一祖先为私密时，书签都必须强制私密。
+    const categoryIsPublic = await isCategoryPublicToVisitors(env.NAV_DB, catelog_id);
+    const finalIsPrivate = categoryIsPublic ? isPrivateValue : 1;
 
     const update = await env.NAV_DB.prepare(`
       UPDATE sites
