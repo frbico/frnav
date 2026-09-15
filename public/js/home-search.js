@@ -1,13 +1,76 @@
 (function () {
   const Home = window.IoriHome = window.IoriHome || {};
 
+  // 站点 Logo 默认保持透明背景并完整显示，避免透明 PNG/SVG 被灰白底填充。
+  // 用 CSS 覆盖现有 Tailwind bg/object-cover 类，这样 SSR 卡片和前端动态重绘卡片都会生效。
+  function ensureTransparentLogoStyle() {
+    if (document.getElementById('iori-transparent-logo-style')) return;
+    const style = document.createElement('style');
+    style.id = 'iori-transparent-logo-style';
+    style.textContent = `
+      .site-card .site-icon img {
+        background-color: transparent !important;
+        object-fit: contain !important;
+      }
+    `;
+    document.head.appendChild(style);
+  }
+
+  ensureTransparentLogoStyle();
+
   Home.initSearch = function () {
     const sitesGrid = document.getElementById('sitesGrid');
     const searchInputs = document.querySelectorAll('.search-input-target');
+
+    // 兼容旧模板：服务端目前仍输出 Baidu，这里在前端无侵入替换为 Bing。
+    // 后续如果模板改成 data-search-url，也会自动按通用配置工作。
+    const legacyBaiduOption = document.querySelector('.search-engine-option[data-engine="baidu"]');
+    if (legacyBaiduOption) {
+      legacyBaiduOption.dataset.engine = 'bing';
+      legacyBaiduOption.dataset.placeholder = 'Bing 搜索...';
+      legacyBaiduOption.dataset.searchUrl = 'https://www.bing.com/search?q={query}';
+      const label = legacyBaiduOption.querySelector('span');
+      if (label) label.textContent = 'Bing';
+    }
+
     const engineOptions = document.querySelectorAll('.search-engine-option');
     let searchCardCache = null;
     let searchDebounceTimer = null;
     let currentSearchEngine = 'local';
+
+    // 默认引擎配置。任何额外的 .search-engine-option 只要提供
+    // data-search-url="https://example.com/search?q={query}" 即可自定义搜索引擎。
+    const defaultEngineConfig = {
+      local: {
+        placeholder: '搜索书签...',
+        searchUrl: ''
+      },
+      google: {
+        placeholder: 'Google 搜索...',
+        searchUrl: 'https://www.google.com/search?q={query}'
+      },
+      bing: {
+        placeholder: 'Bing 搜索...',
+        searchUrl: 'https://www.bing.com/search?q={query}'
+      },
+      github: {
+        placeholder: 'Github 搜索...',
+        searchUrl: 'https://github.com/search?q={query}'
+      }
+    };
+
+    function getEngineOption(engine) {
+      return Array.from(engineOptions).find(opt => opt.dataset.engine === engine) || null;
+    }
+
+    function getEngineConfig(engine) {
+      const option = getEngineOption(engine);
+      const fallback = defaultEngineConfig[engine] || {};
+      return {
+        placeholder: option?.dataset.placeholder || fallback.placeholder || `${engine} 搜索...`,
+        searchUrl: option?.dataset.searchUrl || fallback.searchUrl || ''
+      };
+    }
 
     function clearSearchCardCache() {
       searchCardCache = null;
@@ -67,12 +130,7 @@
         }
       });
 
-      let placeholder = '搜索书签...';
-      switch (engine) {
-        case 'google': placeholder = 'Google 搜索...'; break;
-        case 'baidu': placeholder = '百度搜索...'; break;
-        case 'github': placeholder = 'Github 搜索...'; break;
-      }
+      const { placeholder } = getEngineConfig(engine);
 
       searchInputs.forEach(input => {
         input.placeholder = placeholder;
@@ -116,11 +174,23 @@
     Home.updateHeading = updateHeading;
 
     if (engineOptions.length > 0) {
-      currentSearchEngine = localStorage.getItem('search_engine') || 'local';
-      if (currentSearchEngine === 'bing') {
-        currentSearchEngine = 'github';
+      let savedEngine = localStorage.getItem('search_engine') || 'local';
+
+      // 从旧版本迁移：曾经保存为 baidu 的用户自动切换到 bing。
+      if (savedEngine === 'baidu') {
+        savedEngine = 'bing';
+        localStorage.setItem('search_engine', savedEngine);
+      }
+
+      const engineExists = Array.from(engineOptions).some(
+        opt => opt.dataset.engine === savedEngine
+      );
+
+      currentSearchEngine = engineExists ? savedEngine : 'local';
+      if (!engineExists) {
         localStorage.setItem('search_engine', currentSearchEngine);
       }
+
       updateSearchEngineUI(currentSearchEngine);
     } else {
       localStorage.removeItem('search_engine');
@@ -156,13 +226,11 @@
           e.preventDefault();
           const query = this.value.trim();
           if (query) {
-            let url = '';
-            switch (currentSearchEngine) {
-              case 'google': url = `https://www.google.com/search?q=${encodeURIComponent(query)}`; break;
-              case 'baidu': url = `https://www.baidu.com/s?wd=${encodeURIComponent(query)}`; break;
-              case 'github': url = `https://github.com/search?q=${encodeURIComponent(query)}`; break;
+            const { searchUrl } = getEngineConfig(currentSearchEngine);
+            if (searchUrl) {
+              const url = searchUrl.replace('{query}', encodeURIComponent(query));
+              window.open(url, '_blank', 'noopener,noreferrer');
             }
-            if (url) window.open(url, '_blank');
           }
         }
       });
