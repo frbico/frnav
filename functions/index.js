@@ -8,6 +8,7 @@ import { renderSiteCards, renderEmptyState } from './lib/card-renderer';
 import { buildCardHydrationState } from './lib/card-model';
 import { ensureSchemaReady } from './lib/schema-migration';
 import { resolveWallpaperUrl } from './lib/wallpaper-defaults';
+import { PUBLIC_CATEGORIES_CTE } from './lib/privacy';
 
 // 模板内容在 Worker 运行时实例生命周期内不变（部署会替换实例），缓存避免每次 MISS 重复 ASSETS.fetch
 let cachedTemplateHtml = null;
@@ -46,7 +47,6 @@ export async function onRequest(context) {
   const { request, env } = context;
 
   const isAuthenticated = await isAdminAuthenticated(request, env);
-  const includePrivate = isAuthenticated ? 1 : 0;
 
   // === 1. 缓存检查 ===
   const url = new URL(request.url);
@@ -107,15 +107,29 @@ export async function onRequest(context) {
   }
 
   // === 2. 并行执行数据库查询 + 模板获取 ===
+  // 匿名首页只允许从“公开根分类”一路沿公开子分类向下到达的分类。
+  // 这样即使数据库出现“私密父分类 + 误标公开子分类/书签”的脏状态，也会 fail closed。
   const categoryQuery = isAuthenticated
     ? 'SELECT id, catelog, sort_order, parent_id, is_private FROM category ORDER BY sort_order ASC, id ASC'
-    : 'SELECT id, catelog, sort_order, parent_id FROM category WHERE is_private = 0 ORDER BY sort_order ASC, id ASC';
+    : `${PUBLIC_CATEGORIES_CTE}
+       SELECT id, catelog, sort_order, parent_id
+       FROM category
+       WHERE id IN (SELECT id FROM public_categories)
+       ORDER BY sort_order ASC, id ASC`;
 
   const settingsKeys = getSettingsKeys();
   const settingsPlaceholders = settingsKeys.map(() => '?').join(',');
   // sort_order 仅用于 ORDER BY，不参与 SELECT（SQLite 允许）；前端不使用该字段
-  const sitesQuery = `SELECT id, name, url, logo, desc, catelog_id, catelog_name
-                      FROM sites WHERE (is_private = 0 OR ? = 1) ORDER BY sort_order ASC, create_time DESC`;
+  const sitesQuery = isAuthenticated
+    ? `SELECT id, name, url, logo, desc, catelog_id, catelog_name
+       FROM sites
+       ORDER BY sort_order ASC, create_time DESC`
+    : `${PUBLIC_CATEGORIES_CTE}
+       SELECT s.id, s.name, s.url, s.logo, s.desc, s.catelog_id, s.catelog_name
+       FROM sites s
+       WHERE s.is_private = 0
+         AND s.catelog_id IN (SELECT id FROM public_categories)
+       ORDER BY s.sort_order ASC, s.create_time DESC`;
 
   // Settings 缓存：优先从 KV 读取，减少数据库查询
   const settingsCacheKey = 'settings_cache';
@@ -138,7 +152,7 @@ export async function onRequest(context) {
   const [categoriesResult, settingsResult, sitesResult, templateHtml] = await Promise.all([
     env.NAV_DB.prepare(categoryQuery).all().catch(e => ({ results: [], error: e })),
     fetchSettings().catch(e => ({ results: [], error: e })),
-    env.NAV_DB.prepare(sitesQuery).bind(includePrivate).all().catch(e => ({ results: [], error: e })),
+    env.NAV_DB.prepare(sitesQuery).all().catch(e => ({ results: [], error: e })),
     getTemplateHtml(env, request.url)
   ]);
 
