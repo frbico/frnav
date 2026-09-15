@@ -66,6 +66,8 @@ test('GET /api/config caps pageSize at 200 for anonymous requests and echoes the
   assert.equal(response.status, 200);
   assert.equal(body.pageSize, 200);
   assert.equal(listCalls.length, 1);
+  assert.match(listCalls[0].sql, /WITH RECURSIVE public_categories/);
+  assert.match(listCalls[0].sql, /s\.catelog_id IN \(SELECT id FROM public_categories\)/);
   const [limit, offset] = listCalls[0].params.slice(-2);
   assert.equal(limit, 200);
   assert.equal(offset, 0);
