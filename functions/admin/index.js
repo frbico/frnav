@@ -30,8 +30,8 @@ export async function onRequestGet(context) {
       if (csrfToken) {
         let html = await response.text();
         html = html.replace('</head>', `<meta name="csrf-token" content="${csrfToken}">\n</head>`);
-        // 自定义增强脚本使用独立文件名与版本号，避免旧的 immutable JS 缓存干扰。
-        html = html.replace('</body>', '<script src="/js/admin-site-icon.js?v=20260915-2"></script>\n</body>');
+        // 自定义增强脚本使用独立文件名与版本号，避免旧缓存干扰。
+        html = html.replace('</body>', '<script src="/js/admin-site-icon.js?v=20260915-3"></script>\n</body>');
         const headers = new Headers(response.headers);
         headers.set('Cache-Control', 'no-store');
         return new Response(html, { headers });
