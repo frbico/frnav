@@ -20,10 +20,11 @@ export async function onRequestGet(context) {
   }
   const config = results[0];
   
-  // 匿名读取 fail-closed：书签自身和从所属分类到根分类的整条祖先链都必须公开。
-  // 分类缺失、循环、NULL 隐私标记或任一祖先私密时，category_is_public 都不会为 1。
+  // 匿名读取 fail-closed：书签自身和从所属分类到根分类的整条祖先链都必须明确公开。
+  // NULL/异常隐私标记、分类缺失、循环或任一祖先私密时，都不允许匿名读取。
+  const siteBlocksPublicRead = config.is_private !== 0;
   const categoryBlocksPublicRead = config.category_is_public !== 1;
-  if ((config.is_private || categoryBlocksPublicRead) && !(await isAdminAuthenticated(request, env))) {
+  if ((siteBlocksPublicRead || categoryBlocksPublicRead) && !(await isAdminAuthenticated(request, env))) {
     return errorResponse('config not found', 404);
   }
 
