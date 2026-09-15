@@ -4,13 +4,13 @@ permissions:
   contents: write
 
 on:
-  schedule:
-    - cron: "0 0 * * *" # every day
+  # 已关闭每日自动同步，避免自定义修改被上游覆盖。
+  # 如需同步上游，仍可在 GitHub Actions 页面手动运行此 workflow。
   workflow_dispatch:
 
 jobs:
   sync_latest_from_upstream:
-    name: 自动同步上游仓库
+    name: 手动同步上游仓库
     runs-on: ubuntu-latest
     if: ${{ github.event.repository.fork }}
     env:
@@ -35,6 +35,6 @@ jobs:
       - name: 检查同步状态
         if: failure()
         run: |
-          echo "[Error] 由于上游仓库的 workflow 文件变更，导致 GitHub 自动暂停了本次自动更新，你需要手动 Sync Fork 一次"
-          echo "[Error] Due to changes in the workflow file of the upstream repository, GitHub has automatically paused this automatic update. You need to manually Sync Fork once"
+          echo "[Error] 由于上游仓库的 workflow 文件变更，导致 GitHub 自动暂停了本次更新，你需要手动 Sync Fork 一次"
+          echo "[Error] Due to changes in the workflow file of the upstream repository, GitHub paused this update. You need to manually Sync Fork once"
           exit 1
