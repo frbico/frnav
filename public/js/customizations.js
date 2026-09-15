@@ -191,12 +191,62 @@
     }
   }
 
+  function getCurrentFooterDescription(paragraph) {
+    const text = String(paragraph?.textContent || '').trim();
+    return text.replace(/^©\s*\d{4}\s*/u, '').trim();
+  }
+
+  function renderFooterSettings(config) {
+    const footer = document.querySelector('footer');
+    const row = footer?.querySelector('.flex.justify-center.items-center');
+    if (!row) return;
+
+    const githubLink = row.querySelector('a');
+    const separator = row.querySelector('span.text-gray-300');
+    const paragraph = row.querySelector('p');
+    if (!paragraph) return;
+
+    const existingDescription = getCurrentFooterDescription(paragraph);
+    const showGithub = config.home_footer_show_github !== false;
+    const githubUrl = String(config.home_footer_github_url ?? 'https://slink.661388.xyz/iori-nav').trim();
+    const copyrightTemplate = String(config.home_footer_copyright_text ?? '© {year}');
+    const copyrightText = copyrightTemplate.replaceAll('{year}', String(new Date().getFullYear())).trim();
+    const footerDescription = String(config.home_footer_text || existingDescription).trim();
+
+    if (githubLink) {
+      githubLink.style.display = showGithub ? '' : 'none';
+      if (githubUrl) {
+        githubLink.href = githubUrl;
+        githubLink.rel = 'noopener noreferrer';
+      } else {
+        githubLink.removeAttribute('href');
+      }
+    }
+
+    const rightText = [copyrightText, footerDescription].filter(Boolean).join(' ');
+    paragraph.textContent = rightText;
+    paragraph.style.display = rightText ? '' : 'none';
+    if (separator) separator.style.display = showGithub && rightText ? '' : 'none';
+  }
+
+  async function loadFooterSettings() {
+    try {
+      const response = await fetch('/api/public-config', { cache: 'no-store' });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const config = await response.json();
+      renderFooterSettings(config || {});
+    } catch (error) {
+      console.warn('Failed to load footer settings:', error);
+    }
+  }
+
   function init() {
     injectTransparentLogoStyle();
     patchLegacyBaiduTextImmediately();
     bindSearchInputController();
     void loadSearchEngines();
     void loadCustomFavicon();
+    void loadFooterSettings();
   }
 
   if (document.readyState === 'loading') {
