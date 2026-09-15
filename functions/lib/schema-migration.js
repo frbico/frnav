@@ -100,14 +100,14 @@ async function runIncrementalMigrations(env) {
       UPDATE category
       SET is_private = 1
       WHERE id IN (SELECT id FROM private_descendants)
-        AND is_private != 1
+        AND COALESCE(is_private, 0) != 1
     `),
     env.NAV_DB.prepare(`
       ${privateDescendantsCte}
       UPDATE sites
       SET is_private = 1
       WHERE catelog_id IN (SELECT id FROM private_descendants)
-        AND is_private != 1
+        AND COALESCE(is_private, 0) != 1
     `),
   ]);
 }
