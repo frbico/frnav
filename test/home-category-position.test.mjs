@@ -13,22 +13,24 @@ function createStatement(sql, settingsRows) {
       return createStatement(sql, settingsRows);
     },
     async all() {
-      if (sql.includes('FROM category')) {
-        return {
-          results: [
-            { id: 1, catelog: '工具', sort_order: 1, parent_id: 0 },
-          ],
-        };
-      }
-
+      // 匿名首页查询现在带 public_categories 递归 CTE，SQL 前半段也会出现 FROM category。
+      // 因此先识别真正的站点/设置主查询，再兜底识别分类主查询。
       if (sql.includes('FROM settings')) {
         return { results: settingsRows };
       }
 
-      if (sql.includes('FROM sites')) {
+      if (sql.includes('FROM sites s') || /FROM sites\s*(?:ORDER BY|$)/m.test(sql)) {
         return {
           results: [
             { id: 1, name: 'Example', url: 'https://example.com', logo: '', desc: 'Example site', catelog_id: 1, catelog_name: '工具' },
+          ],
+        };
+      }
+
+      if (sql.includes('FROM category')) {
+        return {
+          results: [
+            { id: 1, catelog: '工具', sort_order: 1, parent_id: 0 },
           ],
         };
       }
