@@ -1,3 +1,12 @@
+> [!IMPORTANT]
+> **项目说明**
+>
+> 本项目基于 [jy02739244/iori-nav](https://github.com/jy02739244/iori-nav/) 二次开发，结合个人使用习惯进行定制。
+>
+> 全部代码均在 [jy02739244/iori-nav](https://github.com/jy02739244/iori-nav/) 的基础上，由天才程序员 **ChatGPT** 完成。
+>
+> 尊重原作者及其开源成果，如需使用，请移步原项目：**https://github.com/jy02739244/iori-nav/**
+
 # frnav - 个人网址导航
 
 <p align="center">
