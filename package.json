@@ -1,7 +1,7 @@
 {
-  "name": "iori-nav",
+  "name": "frnav",
   "private": true,
-  "description": "书签导航站点 - 基于 Cloudflare 全家桶",
+  "description": "个人书签导航站点 - 基于 Cloudflare Pages + Functions + D1 + KV",
   "scripts": {
     "prepare": "husky",
     "predev": "node scripts/update-versions.js",
