@@ -56,7 +56,7 @@
 - 私密分类祖先链保护与异常数据 fail closed
 - 首页标题与后台站点名称保持一致
 - Cloudflare D1 Schema 运行时自动初始化与迁移
-- 关闭上游每日自动同步，避免覆盖本项目定制修改
+- 已移除上游自动同步工作流，避免任何上游代码覆盖本项目定制修改
 
 ---
 
@@ -196,7 +196,7 @@ npm run check
 
 `frnav` 基于开源导航项目持续二次开发，并保留原项目的 MIT License 与相关版权信息。
 
-本仓库在完成 GitHub Fork Network 分离后，将作为独立项目继续维护；不会自动同步或覆盖来自上游仓库的代码变更。
+本仓库已完成 GitHub Fork Network 分离，现在作为独立项目维护；不会自动同步或覆盖来自上游仓库的代码变更。
 
 许可证： [MIT License](https://github.com/frbico/frnav/blob/master/LICENSE)
 
